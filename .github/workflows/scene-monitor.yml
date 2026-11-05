@@ -1,0 +1,77 @@
+name: Scene cinema monitor
+
+on:
+  schedule:
+    - cron: '2-57/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: What to run
+        type: choice
+        default: check
+        options:
+          - check
+          - telegram-test
+          - success-test
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scene-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_DATE: '2026-12-25'
+      STATUS_INTERVAL_SECONDS: '3600'
+      HEADLESS: 'true'
+      BROWSER_CHANNEL: chromium
+      DATA_DIR: data
+      RUN_MODE: ${{ inputs.mode || 'check' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Stop checks after the target date
+        id: window
+        run: node src/workflow-gate.js
+      - uses: actions/setup-node@v7
+        if: steps.window.outputs.active == 'true'
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        if: steps.window.outputs.active == 'true'
+        run: npm ci
+      - name: Install Chromium
+        if: steps.window.outputs.active == 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Restore notification history
+        if: steps.window.outputs.active == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: data/state.json
+          key: scene-state-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: scene-state-v1-
+      - name: Run Scene check or selected test
+        if: steps.window.outputs.active == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          case "$RUN_MODE" in
+            check) npm run check ;;
+            telegram-test) npm run telegram:test ;;
+            success-test) npm run success:test -- --site=scene --date=2026-12-16 ;;
+            *) exit 1 ;;
+          esac
+      - name: Save notification history
+        if: always() && steps.window.outputs.active == 'true' && hashFiles('data/state.json') != ''
+        uses: actions/cache/save@v6
+        with:
+          path: data/state.json
+          key: scene-state-v1-${{ github.run_id }}-${{ github.run_attempt }}
