@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+node_modules/
+browser-profile/
+data/
+artifacts/
+*.log

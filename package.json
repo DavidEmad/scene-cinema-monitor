@@ -1,0 +1,20 @@
+{
+  "name": "cinema-date-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "telegram:test": "node --env-file-if-exists=.env src/telegram-test.js",
+    "success:test": "node --env-file-if-exists=.env src/success-test.js",
+    "inspect": "node --env-file-if-exists=.env src/inspect.js",
+    "check": "node --env-file-if-exists=.env src/monitor.js --once",
+    "start": "node --env-file-if-exists=.env src/monitor.js",
+    "test": "node --test test/schedule.test.js test/navigation.test.js test/status.test.js"
+  },
+  "dependencies": {
+    "playwright": "1.56.1"
+  }
+}
